@@ -62,7 +62,7 @@ private final class DynamicIslandArtworkLoopController {
     }
 }
 
-private final class DynamicIslandArtworkVideoContainerView: NSView {
+final class DynamicIslandArtworkVideoContainerView: NSView {
     let playerLayer = AVPlayerLayer()
 
     override init(frame frameRect: NSRect) {
@@ -84,7 +84,7 @@ private final class DynamicIslandArtworkVideoContainerView: NSView {
     }
 }
 
-private struct DynamicIslandArtworkVideoView: NSViewRepresentable {
+struct DynamicIslandArtworkVideoView: NSViewRepresentable {
     let url: URL
     let videoGravity: AVLayerVideoGravity
 

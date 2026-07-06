@@ -1211,6 +1211,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             TimerManager.shared.startDemoTimer(duration: 300)
         }
 
+        KeyboardShortcuts.onKeyDown(for: .toggleFullscreenMusicOverlay) {
+            guard Defaults[.enableShortcuts], Defaults[.enableFullscreenMusicOverlayShortcut] else { return }
+            FullscreenMusicOverlayWindowManager.shared.toggle()
+        }
+
         KeyboardShortcuts.onKeyDown(for: .clipboardHistoryPanel) { [weak self] in
             guard let self else { return }
             guard Defaults[.enableShortcuts], Defaults[.enableClipboardManager] else { return }
@@ -1305,6 +1310,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         updateShortcut(.colorPickerPanel, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableColorPickerFeature])
         updateShortcut(.screenAssistantPanel, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableScreenAssistant])
         updateShortcut(.toggleTerminalTab, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableTerminalFeature])
+        updateShortcut(.toggleFullscreenMusicOverlay, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableFullscreenMusicOverlayShortcut])
     }
 
     @MainActor

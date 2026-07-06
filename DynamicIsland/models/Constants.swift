@@ -652,17 +652,25 @@ enum AIModelProvider: String, CaseIterable, Identifiable, Defaults.Serializable 
     case groq = "Groq"
     
     var id: String { self.rawValue }
-    
+
     var displayName: String {
-        return self.rawValue
+        switch self {
+        case .local: return "Ollama (Local)"
+        default: return self.rawValue
+        }
     }
-    
+
+    /// The Obsidian vault assistant only offers Ollama — no cloud provider,
+    /// no separate billing/API key needed. Gemini/OpenAI/Claude/Groq stay in
+    /// the enum for backward compatibility but are hidden from every picker.
+    static let availableForObsidianAssistant: [AIModelProvider] = [.local]
+
     var description: String {
         switch self {
         case .gemini: return "Google's Gemini AI with multimodal capabilities"
         case .openai: return "OpenAI's GPT models with advanced reasoning"
         case .claude: return "Anthropic's Claude with strong analytical skills"
-        case .local: return "Local AI model (Ollama or similar)"
+        case .local: return "Local AI model via Ollama — free and private, runs entirely on this Mac"
         case .groq: return "Groq's fast inference for OpenAI-compatible models"
         }
     }
@@ -696,13 +704,19 @@ enum AIModelProvider: String, CaseIterable, Identifiable, Defaults.Serializable 
             ]
         case .claude:
             return [
-                AIModel(id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet", supportsThinking: false),
-                AIModel(id: "claude-3-haiku", name: "Claude 3 Haiku", supportsThinking: false)
+                AIModel(id: "claude-opus-4-8", name: "Claude Opus 4.8", supportsThinking: true),
+                AIModel(id: "claude-sonnet-5", name: "Claude Sonnet 5", supportsThinking: true),
+                AIModel(id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", supportsThinking: false)
             ]
         case .local:
+            // Kept in sync with what's actually pulled via `ollama list` on
+            // this Mac — picking a model here that isn't installed would
+            // just fail at request time.
             return [
-                AIModel(id: "llama3.2", name: "Llama 3.2", supportsThinking: false),
-                AIModel(id: "qwen2.5", name: "Qwen 2.5", supportsThinking: false)
+                AIModel(id: "llama3.1:8b", name: "Llama 3.1 8B", supportsThinking: false),
+                AIModel(id: "llama3.2", name: "Llama 3.2 3B", supportsThinking: false),
+                AIModel(id: "gemma3:4b", name: "Gemma 3 4B", supportsThinking: false),
+                AIModel(id: "mistral", name: "Mistral 7B", supportsThinking: false)
             ]
         case .groq:
             return [
@@ -976,6 +990,13 @@ extension Defaults.Keys {
     static let lockScreenPanelUsesBlur = Key<Bool>("lockScreenPanelUsesBlur", default: true)
     static let lockScreenMusicMergedAirPlayOutput = Key<Bool>("lockScreenMusicMergedAirPlayOutput", default: true)
     static let lockScreenMusicFullscreenArtworkEnabled = Key<Bool>("lockScreenMusicFullscreenArtworkEnabled", default: true)
+    /// Which of the three artwork visuals (Festbild/Live Canvas/Vinyl) the
+    /// full-screen lock-screen overlay shows — persisted so it stays on
+    /// whatever you last picked instead of resetting every time you close it.
+    static let lockScreenFullscreenArtworkMode = Key<ArtworkDisplayMode>(
+        "lockScreenFullscreenArtworkMode",
+        default: .staticImage
+    )
     static let lockScreenKeepAlbumArtVisibleDuringFullscreenArtwork = Key<Bool>("lockScreenKeepAlbumArtVisibleDuringFullscreenArtwork", default: false)
     static let lockScreenMusicFullscreenVideoArtwork = Key<Bool>("lockScreenMusicFullscreenVideoArtwork", default: true)
     static let lockScreenUseArtworkLayoutOverFullscreenCanvas = Key<Bool>("lockScreenShowCenteredAlbumArtOverFullscreenCanvas", default: true)
@@ -1142,6 +1163,7 @@ extension Defaults.Keys {
     
     // MARK: ColorPicker Feature
     static let enableColorPickerFeature = Key<Bool>("enableColorPickerFeature", default: true)
+    static let enableFullscreenMusicOverlayShortcut = Key<Bool>("enableFullscreenMusicOverlayShortcut", default: true)
     static let showColorFormats = Key<Bool>("showColorFormats", default: true)
     static let colorPickerDisplayMode = Key<ColorPickerDisplayMode>("colorPickerDisplayMode", default: .panel)
     static let colorHistorySize = Key<Int>("colorHistorySize", default: 10)
@@ -1160,10 +1182,18 @@ extension Defaults.Keys {
     static let openaiApiKey = Key<String>("openaiApiKey", default: "")
     static let claudeApiKey = Key<String>("claudeApiKey", default: "")
     static let groqApiKey = Key<String>("groqApiKey", default: "")
-    static let selectedAIProvider = Key<AIModelProvider>("selectedAIProvider", default: .gemini)
+    static let selectedAIProvider = Key<AIModelProvider>("selectedAIProvider", default: .local)
     static let selectedAIModel = Key<AIModel?>("selectedAIModel", default: nil)
     static let enableThinkingMode = Key<Bool>("enableThinkingMode", default: false)
     static let localModelEndpoint = Key<String>("localModelEndpoint", default: "http://localhost:11434")
+    static let obsidianVaultPath = Key<String>(
+        "obsidianVaultPath",
+        default: "/Users/celvinmilde/Projects/App resources/Obsidian Brain"
+    )
+    /// When on, every message automatically includes vault context and the
+    /// assistant can propose note writes. When off, it's just a plain
+    /// general-purpose chat with no vault involvement.
+    static let obsidianVaultModeEnabled = Key<Bool>("obsidianVaultModeEnabled", default: true)
 
     // MARK: Third-Party Extensions
     static let enableThirdPartyExtensions = Key<Bool>("enableThirdPartyExtensions", default: true)

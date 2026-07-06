@@ -6429,6 +6429,32 @@ struct Shortcuts: View {
                         .foregroundStyle(.secondary)
                         .font(.caption)
                 }
+
+                Section {
+                    Defaults.Toggle(key: .enableFullscreenMusicOverlayShortcut) {
+                        Text("Enable shortcut")
+                    }
+                    HStack {
+                        VStack(alignment: .leading) {
+                            KeyboardShortcuts.Recorder("Fullscreen Music Overlay:", name: .toggleFullscreenMusicOverlay)
+                                .disabled(!enableShortcuts || !Defaults[.enableFullscreenMusicOverlayShortcut])
+                            if !Defaults[.enableFullscreenMusicOverlayShortcut] {
+                                Text("Fullscreen Music Overlay shortcut is disabled")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.top, 2)
+                            }
+                        }
+                        Spacer()
+                    }
+                } header: {
+                    Text("Fullscreen Music Overlay")
+                } footer: {
+                    Text("Opens the same full-screen music view with big album art and synced lyrics used on the lock screen, from anywhere — not just while locked. Default is Cmd+Shift+L. Does nothing when no music is playing.")
+                        .multilineTextAlignment(.trailing)
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                }
             } else {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
@@ -7588,12 +7614,57 @@ struct ScreenAssistantSettings: View {
     @ObservedObject var screenAssistantManager = ScreenAssistantManager.shared
     @Default(.enableScreenAssistant) var enableScreenAssistant
     @Default(.screenAssistantDisplayMode) var screenAssistantDisplayMode
+    @Default(.selectedAIProvider) var selectedAIProvider
     @Default(.geminiApiKey) var geminiApiKey
+    @Default(.openaiApiKey) var openaiApiKey
+    @Default(.claudeApiKey) var claudeApiKey
+    @Default(.groqApiKey) var groqApiKey
     @State private var apiKeyText = ""
     @State private var showingApiKey = false
 
     private func highlightID(_ title: String) -> String {
         SettingsTab.screenAssistant.highlightID(for: title)
+    }
+
+    private var currentProviderKeyTitle: String {
+        switch selectedAIProvider {
+        case .gemini: return "Gemini API Key"
+        case .openai: return "OpenAI API Key"
+        case .claude: return "Claude API Key"
+        case .groq: return "Groq API Key"
+        case .local: return "Local Model"
+        }
+    }
+
+    private var currentProviderKey: String {
+        switch selectedAIProvider {
+        case .gemini: return geminiApiKey
+        case .openai: return openaiApiKey
+        case .claude: return claudeApiKey
+        case .groq: return groqApiKey
+        case .local: return "local"
+        }
+    }
+
+    private func saveCurrentProviderKey(_ value: String) {
+        switch selectedAIProvider {
+        case .gemini: Defaults[.geminiApiKey] = value
+        case .openai: Defaults[.openaiApiKey] = value
+        case .claude: Defaults[.claudeApiKey] = value
+        case .groq: Defaults[.groqApiKey] = value
+        case .local: break
+        }
+    }
+
+    /// Resets the selected model when the provider changes, if the
+    /// currently-selected model doesn't belong to the new provider —
+    /// otherwise a leftover model id from the old provider would silently
+    /// get sent to the new provider's API and fail.
+    private func ensureModelMatchesProvider() {
+        let current = Defaults[.selectedAIModel]
+        if current == nil || !selectedAIProvider.supportedModels.contains(where: { $0.id == current?.id }) {
+            Defaults[.selectedAIModel] = selectedAIProvider.supportedModels.first
+        }
     }
 
     var body: some View {
@@ -7612,53 +7683,89 @@ struct ScreenAssistantSettings: View {
             if enableScreenAssistant {
                 Section {
                     HStack {
-                        Text("Gemini API Key")
+                        Text("Provider")
                         Spacer()
-                        if geminiApiKey.isEmpty {
-                            Text("Not Set")
-                                .foregroundColor(.red)
-                        } else {
-                            Text("••••••••")
-                                .foregroundColor(.green)
-                        }
-
-                        Button(showingApiKey ? "Hide" : (geminiApiKey.isEmpty ? "Set" : "Change")) {
-                            if showingApiKey {
-                                showingApiKey = false
-                                if !apiKeyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    Defaults[.geminiApiKey] = apiKeyText
-                                }
-                                apiKeyText = ""
-                            } else {
-                                showingApiKey = true
-                                apiKeyText = geminiApiKey
+                        Picker("", selection: $selectedAIProvider) {
+                            ForEach(AIModelProvider.availableForObsidianAssistant) { provider in
+                                Text(provider.displayName).tag(provider)
                             }
                         }
+                        .pickerStyle(.menu)
+                        .frame(minWidth: 140)
+                        .onChange(of: selectedAIProvider) { _, _ in
+                            ensureModelMatchesProvider()
+                            showingApiKey = false
+                            apiKeyText = ""
+                        }
                     }
+                    .settingsHighlight(id: highlightID("Provider"))
 
-                    if showingApiKey {
-                        VStack(alignment: .leading, spacing: 8) {
-                            SecureField("Enter your Gemini API Key", text: $apiKeyText)
-                                .textFieldStyle(.roundedBorder)
+                    if selectedAIProvider != .local {
+                        HStack {
+                            Text(currentProviderKeyTitle)
+                            Spacer()
+                            if currentProviderKey.isEmpty {
+                                Text("Not Set")
+                                    .foregroundColor(.red)
+                            } else {
+                                Text("••••••••")
+                                    .foregroundColor(.green)
+                            }
 
-                            Text("Get your free API key from Google AI Studio")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-
-                            HStack {
-                                Button("Open Google AI Studio") {
-                                    NSWorkspace.shared.open(URL(string: "https://aistudio.google.com/app/apikey")!)
-                                }
-                                .buttonStyle(.link)
-
-                                Spacer()
-
-                                Button("Save") {
-                                    Defaults[.geminiApiKey] = apiKeyText
+                            Button(showingApiKey ? "Hide" : (currentProviderKey.isEmpty ? "Set" : "Change")) {
+                                if showingApiKey {
                                     showingApiKey = false
+                                    if !apiKeyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        saveCurrentProviderKey(apiKeyText)
+                                    }
                                     apiKeyText = ""
+                                } else {
+                                    showingApiKey = true
+                                    apiKeyText = currentProviderKey
                                 }
-                                .disabled(apiKeyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
+                        }
+
+                        if showingApiKey {
+                            VStack(alignment: .leading, spacing: 8) {
+                                SecureField("Enter your \(currentProviderKeyTitle)", text: $apiKeyText)
+                                    .textFieldStyle(.roundedBorder)
+
+                                HStack {
+                                    switch selectedAIProvider {
+                                    case .gemini:
+                                        Button("Open Google AI Studio") {
+                                            NSWorkspace.shared.open(URL(string: "https://aistudio.google.com/app/apikey")!)
+                                        }
+                                        .buttonStyle(.link)
+                                    case .openai:
+                                        Button("Open OpenAI API Keys") {
+                                            NSWorkspace.shared.open(URL(string: "https://platform.openai.com/api-keys")!)
+                                        }
+                                        .buttonStyle(.link)
+                                    case .claude:
+                                        Button("Open Anthropic Console") {
+                                            NSWorkspace.shared.open(URL(string: "https://console.anthropic.com/settings/keys")!)
+                                        }
+                                        .buttonStyle(.link)
+                                    case .groq:
+                                        Button("Open Groq Console") {
+                                            NSWorkspace.shared.open(URL(string: "https://console.groq.com/keys")!)
+                                        }
+                                        .buttonStyle(.link)
+                                    case .local:
+                                        EmptyView()
+                                    }
+
+                                    Spacer()
+
+                                    Button("Save") {
+                                        saveCurrentProviderKey(apiKeyText)
+                                        showingApiKey = false
+                                        apiKeyText = ""
+                                    }
+                                    .disabled(apiKeyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                }
                             }
                         }
                     }

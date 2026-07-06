@@ -123,8 +123,7 @@ class ScreenAssistantManager: NSObject, ObservableObject {
     private var activeRequest: URLSessionTask?
     
     // Panel management
-    private var chatMessagesPanel: ChatMessagesPanel?
-    private var chatInputPanel: ChatInputPanel?
+    private var assistantPanel: AssistantPanel?
     
     // Directory for storing audio recordings
     static let audioDataDirectory: URL = {
@@ -151,6 +150,14 @@ class ScreenAssistantManager: NSObject, ObservableObject {
     private override init() {
         super.init()
         loadFilesFromDefaults()
+
+        // Claude/Gemini/OpenAI/Groq were removed from the picker — if an
+        // older config still points at one of them, fall back to Ollama
+        // instead of silently trying (and failing) to use a hidden provider.
+        if !AIModelProvider.availableForObsidianAssistant.contains(Defaults[.selectedAIProvider]) {
+            Defaults[.selectedAIProvider] = .local
+            Defaults[.selectedAIModel] = nil
+        }
     }
     
     deinit {
@@ -161,34 +168,25 @@ class ScreenAssistantManager: NSObject, ObservableObject {
     // MARK: - Panel Management
     
     func showPanels() {
-        // Close existing panels first
+        // Close existing panel first
         closePanels()
-        
-        // Create and show chat messages panel (left side)
-        chatMessagesPanel = ChatMessagesPanel()
-        chatMessagesPanel?.positionOnLeftSide()
-        chatMessagesPanel?.makeKeyAndOrderFront(nil)
-        
-        // Create and show input panel (center)
-        chatInputPanel = ChatInputPanel()
-        chatInputPanel?.positionInCenter()
-        chatInputPanel?.makeKeyAndOrderFront(nil)
-        
-        // Focus on input panel for immediate typing
+
+        assistantPanel = AssistantPanel()
+        assistantPanel?.positionInCenter()
+        assistantPanel?.makeKeyAndOrderFront(nil)
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            self.chatInputPanel?.makeKey()
+            self.assistantPanel?.makeKey()
         }
     }
-    
+
     func closePanels() {
-        chatMessagesPanel?.close()
-        chatInputPanel?.close()
-        chatMessagesPanel = nil
-        chatInputPanel = nil
+        assistantPanel?.close()
+        assistantPanel = nil
     }
-    
+
     func arePanelsVisible() -> Bool {
-        return chatMessagesPanel?.isVisible == true || chatInputPanel?.isVisible == true
+        return assistantPanel?.isVisible == true
     }
     
     // MARK: - File Management
@@ -411,10 +409,18 @@ class ScreenAssistantManager: NSObject, ObservableObject {
             return
         }
         
-        // Get selected model or default to gemini-2.5-flash
-        let selectedModel = Defaults[.selectedAIModel] ?? AIModel(id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", supportsThinking: true)
-        let modelId = selectedModel.id
-        
+        // Get selected model, but only if it actually belongs to Gemini —
+        // otherwise a leftover model id from a different provider would be
+        // sent here and fail.
+        let selectedModel = Defaults[.selectedAIModel]
+        let modelId: String
+        if let selectedId = selectedModel?.id,
+           AIModelProvider.gemini.supportedModels.contains(where: { $0.id == selectedId }) {
+            modelId = selectedId
+        } else {
+            modelId = "gemini-2.5-flash"
+        }
+
         guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(modelId):generateContent?key=\(apiKey)") else {
             print("❌ ScreenAssistant: Invalid Gemini API URL")
             addAssistantMessage("Error: Invalid API URL")
@@ -434,10 +440,18 @@ class ScreenAssistantManager: NSObject, ObservableObject {
             return
         }
         
-        // Get selected model or default to gpt-4o
-        let selectedModel = Defaults[.selectedAIModel] ?? AIModel(id: "gpt-4o", name: "GPT-4o", supportsThinking: false)
-        let modelId = selectedModel.id
-        
+        // Get selected model, but only if it actually belongs to OpenAI —
+        // otherwise a leftover model id from a different provider would be
+        // sent here and fail.
+        let selectedModel = Defaults[.selectedAIModel]
+        let modelId: String
+        if let selectedId = selectedModel?.id,
+           AIModelProvider.openai.supportedModels.contains(where: { $0.id == selectedId }) {
+            modelId = selectedId
+        } else {
+            modelId = "gpt-4o"
+        }
+
         guard let url = URL(string: "https://api.openai.com/v1/chat/completions") else {
             print("❌ ScreenAssistant: Invalid OpenAI API URL")
             addAssistantMessage("Error: Invalid API URL")
@@ -491,10 +505,19 @@ class ScreenAssistantManager: NSObject, ObservableObject {
             return
         }
         
-        // Get selected model or default to claude-3-5-sonnet
-        let selectedModel = Defaults[.selectedAIModel] ?? AIModel(id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", supportsThinking: false)
-        let modelId = selectedModel.id
-        
+        // Get selected model, but only if it actually belongs to Claude —
+        // switching providers doesn't clear `selectedAIModel`, so a
+        // leftover Gemini/OpenAI/Groq model id would otherwise get sent to
+        // Anthropic's API and fail.
+        let selectedModel = Defaults[.selectedAIModel]
+        let modelId: String
+        if let selectedId = selectedModel?.id,
+           AIModelProvider.claude.supportedModels.contains(where: { $0.id == selectedId }) {
+            modelId = selectedId
+        } else {
+            modelId = "claude-sonnet-5"
+        }
+
         guard let url = URL(string: "https://api.anthropic.com/v1/messages") else {
             print("❌ ScreenAssistant: Invalid Claude API URL")
             addAssistantMessage("Error: Invalid API URL")
@@ -664,11 +687,18 @@ class ScreenAssistantManager: NSObject, ObservableObject {
     }
     
     private func buildOllamaRequestBody(message: String, files: [ScreenAssistantFile]) -> [String: Any] {
-        let selectedModel = Defaults[.selectedAIModel] ?? AIModel(id: "llama3.2", name: "Llama 3.2", supportsThinking: false)
+        let selectedModel = Defaults[.selectedAIModel]
+        let modelId: String
+        if let selectedId = selectedModel?.id,
+           AIModelProvider.local.supportedModels.contains(where: { $0.id == selectedId }) {
+            modelId = selectedId
+        } else {
+            modelId = "llama3.1:8b"
+        }
         let contextualMessage = buildContextualMessage(message: message, files: files)
-        
+
         return [
-            "model": selectedModel.id,
+            "model": modelId,
             "messages": [
                 [
                     "role": "user",
@@ -809,6 +839,19 @@ class ScreenAssistantManager: NSObject, ObservableObject {
         if let httpResponse = response as? HTTPURLResponse {
             print("📊 ScreenAssistant: HTTP Status: \(httpResponse.statusCode)")
             if httpResponse.statusCode != 200 {
+                // Log (and try to surface) the actual error body — the
+                // generic per-status-code message alone hides the real
+                // reason (wrong model id, prompt too long, etc.).
+                if let data, let rawBody = String(data: data, encoding: .utf8) {
+                    print("❌ ScreenAssistant: Raw error body (\(provider.displayName)): \(rawBody)")
+                }
+                if let data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let errorDict = json["error"] as? [String: Any],
+                   let message = errorDict["message"] as? String {
+                    addAssistantMessage("❌ **\(provider.displayName) Error (\(httpResponse.statusCode))**\n\n\(message)")
+                    return
+                }
                 handleAPIError(statusCode: httpResponse.statusCode, provider: provider)
                 return
             }
@@ -938,9 +981,129 @@ class ScreenAssistantManager: NSObject, ObservableObject {
         }
     }
     
+    // MARK: - Obsidian Vault Integration
+
+    private static let obsidianWriteBlockPattern =
+        #"```obsidian-note path="([^"]+)"\n(.*?)```"#
+
+    /// Lists every markdown note in the vault (relative paths) and inlines
+    /// the content of notes whose filename loosely matches a keyword from
+    /// the user's message — gives the assistant automatic context without
+    /// the user having to attach anything manually.
+    private func obsidianVaultContext(for message: String) -> String {
+        let vaultURL = URL(fileURLWithPath: Defaults[.obsidianVaultPath])
+        let fileManager = FileManager.default
+        guard let enumerator = fileManager.enumerator(
+            at: vaultURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return ""
+        }
+
+        var allNotePaths: [String] = []
+        for case let fileURL as URL in enumerator where fileURL.pathExtension.lowercased() == "md" {
+            let relativePath = fileURL.path.replacingOccurrences(of: vaultURL.path + "/", with: "")
+            allNotePaths.append(relativePath)
+        }
+        guard !allNotePaths.isEmpty else { return "" }
+
+        let keywords = message
+            .lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { $0.count > 3 }
+
+        let matchingPaths = allNotePaths.filter { path in
+            let lowerPath = path.lowercased()
+            return keywords.contains { lowerPath.contains($0) }
+        }
+        // Cap how many full notes get inlined so the request stays a
+        // reasonable size, even if many filenames match.
+        let notesToInline = Array(matchingPaths.prefix(5))
+
+        // Cap the file listing too — a very large vault could otherwise
+        // blow past the model's context window on its own.
+        let sortedPaths = allNotePaths.sorted()
+        let listedPaths = Array(sortedPaths.prefix(300))
+
+        var context = "\n\n--- Obsidian Vault Context ---\n"
+        context += "Vault path: \(vaultURL.path)\n"
+        context += "Notes in vault (\(allNotePaths.count) total\(allNotePaths.count > listedPaths.count ? ", showing first \(listedPaths.count)" : "")):\n"
+        context += listedPaths.map { "- \($0)" }.joined(separator: "\n")
+
+        for relativePath in notesToInline {
+            let noteURL = vaultURL.appendingPathComponent(relativePath)
+            if let content = try? String(contentsOf: noteURL, encoding: .utf8) {
+                context += "\n\nContent of \"\(relativePath)\":\n\(content.prefix(4000))"
+            }
+        }
+
+        context += """
+
+        \n\nTo create or update a note, respond with a fenced block in exactly this format \
+        (the app parses it and asks the user to confirm before writing anything to disk):
+        ```obsidian-note path="relative/path/to/Note.md"
+        <full new file content, including YAML frontmatter if any>
+        ```
+        Only include this block when the user actually asked you to create or update a note.
+        --- End Obsidian Vault Context ---
+        """
+
+        return context
+    }
+
+    /// Looks for a pending `obsidian-note` write block in the assistant's
+    /// reply. If found, asks the user to confirm before writing anything —
+    /// per the user's choice, nothing gets written to the vault silently.
+    private func handlePotentialVaultWrite(in responseText: String) {
+        guard let regex = try? NSRegularExpression(
+            pattern: Self.obsidianWriteBlockPattern,
+            options: [.dotMatchesLineSeparators]
+        ) else { return }
+
+        let fullRange = NSRange(responseText.startIndex..., in: responseText)
+        guard let match = regex.firstMatch(in: responseText, range: fullRange),
+              let pathRange = Range(match.range(at: 1), in: responseText),
+              let contentRange = Range(match.range(at: 2), in: responseText)
+        else { return }
+
+        let relativePath = String(responseText[pathRange])
+        let content = String(responseText[contentRange])
+
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Obsidian-Notiz übernehmen?"
+            alert.informativeText = "\(relativePath)\n\nDer Assistent möchte diese Notiz erstellen/aktualisieren. Nichts wird ohne deine Bestätigung geschrieben."
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "Übernehmen")
+            alert.addButton(withTitle: "Abbrechen")
+
+            if alert.runModal() == .alertFirstButtonReturn {
+                self.writeVaultNote(relativePath: relativePath, content: content)
+            }
+        }
+    }
+
+    private func writeVaultNote(relativePath: String, content: String) {
+        let vaultURL = URL(fileURLWithPath: Defaults[.obsidianVaultPath])
+        let noteURL = vaultURL.appendingPathComponent(relativePath)
+
+        do {
+            try FileManager.default.createDirectory(
+                at: noteURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try content.write(to: noteURL, atomically: true, encoding: .utf8)
+            addAssistantMessage("✅ Gespeichert: \(relativePath)")
+        } catch {
+            addAssistantMessage("❌ Konnte \(relativePath) nicht speichern: \(error.localizedDescription)")
+        }
+    }
+
     private func buildContextualMessage(message: String, files: [ScreenAssistantFile]) -> String {
-        var contextualMessage = message
-        
+        let vaultContext = Defaults[.obsidianVaultModeEnabled] ? obsidianVaultContext(for: message) : ""
+        var contextualMessage = message + vaultContext
+
         // Add file context with specific instructions for different types
         if !files.isEmpty {
             contextualMessage += "\n\nI have attached the following files for your analysis:"
@@ -1189,8 +1352,32 @@ class ScreenAssistantManager: NSObject, ObservableObject {
     
     private func addAssistantMessage(_ content: String) {
         print("💬 ScreenAssistant: Adding assistant message: \(content.prefix(100))...")
-        let assistantMessage = ChatMessage(content: content, isFromUser: false)
+        let assistantMessage = ChatMessage(content: displayText(for: content), isFromUser: false)
         chatMessages.append(assistantMessage)
+        if Defaults[.obsidianVaultModeEnabled] {
+            handlePotentialVaultWrite(in: content)
+        }
+    }
+
+    /// Replaces the raw `obsidian-note` fenced block (meant for parsing,
+    /// not reading) with a short human-readable placeholder in the chat.
+    private func displayText(for content: String) -> String {
+        guard let regex = try? NSRegularExpression(
+            pattern: Self.obsidianWriteBlockPattern,
+            options: [.dotMatchesLineSeparators]
+        ) else { return content }
+
+        let fullRange = NSRange(content.startIndex..., in: content)
+        guard let match = regex.firstMatch(in: content, range: fullRange),
+              let pathRange = Range(match.range(at: 1), in: content)
+        else { return content }
+
+        let relativePath = String(content[pathRange])
+        return regex.stringByReplacingMatches(
+            in: content,
+            range: fullRange,
+            withTemplate: "📝 Vorschlag für \"\(relativePath)\" — Bestätigung folgt…"
+        )
     }
     
     private func handleAPIError(statusCode: Int, provider: AIModelProvider) {

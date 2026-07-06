@@ -117,7 +117,7 @@ class ModelSelectionPanel: NSPanel {
 
 // MARK: - Model Selection View
 struct ModelSelectionView: View {
-    private let primaryProviders: [AIModelProvider] = [.gemini, .openai, .claude, .local]
+    private let primaryProviders: [AIModelProvider] = AIModelProvider.availableForObsidianAssistant
     @State private var selectedProvider: AIModelProvider = Defaults[.selectedAIProvider]
     @State private var selectedModel: AIModel? = Defaults[.selectedAIModel]
     @State private var enableThinking: Bool = Defaults[.enableThinkingMode]
@@ -180,13 +180,6 @@ struct ModelSelectionView: View {
                                 )
                             }
                         }
-
-                        ProviderCard(
-                            provider: .groq,
-                            isSelected: selectedProvider == .groq,
-                            onSelect: { selectProvider(.groq) },
-                            isWide: true
-                        )
                     }
                     
                     Divider()

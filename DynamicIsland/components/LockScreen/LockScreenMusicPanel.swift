@@ -422,7 +422,7 @@ struct LockScreenMusicPanel: View {
         .animation(.easeInOut(duration: 0.2), value: musicManager.isPlaying)
         .animation(.easeInOut(duration: 0.28), value: isArtworkFullscreen)
         .onTapGesture {
-            toggleExpanded()
+            openFullscreenOverlay()
         }
         .onRightClick {
             expandArtworkToFullscreen()
@@ -443,20 +443,13 @@ struct LockScreenMusicPanel: View {
         }
     }
 
-    private func toggleExpanded() {
-        let newState = !isExpanded
-        suspendParallaxInteraction()
-        withAnimation(.easeInOut(duration: 0.28)) {
-            isExpanded = newState
-        }
-
-        if newState {
-            registerInteraction()
-            logPanelAppearance(event: "🔍 Expanded")
-        } else {
-            logPanelAppearance(event: "⬇️ Collapsed")
-            cancelCollapseTimer()
-        }
+    /// A single tap on the album art — from the very first, compact card —
+    /// opens the full-screen overlay directly. Atoll's own windowed
+    /// "expanded" (720x340) card is intentionally skipped entirely.
+    private func openFullscreenOverlay() {
+        guard musicManager.hasActiveSession else { return }
+        logPanelAppearance(event: "🖥️ Fullscreen")
+        FullscreenMusicOverlayWindowManager.shared.show()
     }
 
     private func expandArtworkToFullscreen() {
