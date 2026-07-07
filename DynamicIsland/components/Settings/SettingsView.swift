@@ -54,6 +54,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
     case devices
     case extensions
     case timer
+    case stocks
     case calendar
     case hudAndOSD
     case battery
@@ -76,7 +77,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .general, .appearance:                                          return .core
         case .media, .liveActivities, .lockScreen, .devices:                 return .mediaAndDisplay
         case .hudAndOSD, .battery:                                           return .system
-        case .timer, .calendar, .notes:                                      return .productivity
+        case .timer, .stocks, .calendar, .notes:                             return .productivity
         case .clipboard, .screenAssistant, .colorPicker, .shelf,
              .downloads, .shortcuts:                                         return .utilities
         case .stats, .terminal:                                              return .developer
@@ -95,6 +96,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .devices: return String(localized: "Devices")
         case .extensions: return String(localized: "Extensions")
         case .timer: return String(localized: "Timer")
+        case .stocks: return String(localized: "Stocks")
         case .calendar: return String(localized: "Calendar")
         case .hudAndOSD: return String(localized: "Controls")
         case .battery: return String(localized: "Battery")
@@ -121,6 +123,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .devices: return "headphones"
         case .extensions: return "puzzlepiece.extension"
         case .timer: return "timer"
+        case .stocks: return "chart.line.uptrend.xyaxis"
         case .calendar: return "calendar"
         case .hudAndOSD: return "dial.medium.fill"
         case .battery: return "battery.100.bolt"
@@ -147,6 +150,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .devices: return Color(red: 0.1, green: 0.11, blue: 0.12)
         case .extensions: return Color(red: 0.557, green: 0.353, blue: 0.957)
         case .timer: return .red
+        case .stocks: return .green
         case .calendar: return .cyan
         case .hudAndOSD: return .indigo
         case .battery: return Color(red: 0.202, green: 0.783, blue: 0.348, opacity: 1.000)
@@ -495,6 +499,7 @@ struct SettingsView: View {
             .battery,
             // Productivity
             .timer,
+            .stocks,
             .calendar,
             .notes,
             // Utilities
@@ -975,6 +980,10 @@ struct SettingsView: View {
         case .timer:
             SettingsForm(tab: .timer) {
                 TimerSettings()
+            }
+        case .stocks:
+            SettingsForm(tab: .stocks) {
+                StocksSettings()
             }
         case .calendar:
             SettingsForm(tab: .calendar) {
@@ -7142,6 +7151,178 @@ private struct TimerPresetComponentControl: View {
             }
         }
         .frame(width: 110, alignment: .leading)
+    }
+}
+
+struct StocksSettings: View {
+    @ObservedObject private var stockManager = StockManager.shared
+    @Default(.enableStocksFeature) private var enableStocksFeature
+    @Default(.stockSymbol) private var stockSymbol
+
+    @State private var symbolInput = ""
+    @State private var searchResults: [StockSearchResult] = []
+    @State private var previewQuote: StockQuote?
+    @State private var isChecking = false
+    @State private var checkFailed = false
+
+    private func highlightID(_ title: String) -> String {
+        SettingsTab.stocks.highlightID(for: title)
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Defaults.Toggle(key: .enableStocksFeature) {
+                    Text("Enable stocks feature")
+                }
+                .settingsHighlight(id: highlightID("Enable stocks feature"))
+            } header: {
+                Text("Stocks Feature")
+            } footer: {
+                Text("Shows a stock or ETF's price and daily change in the notch. Quotes are fetched from a free public source and refresh about once a minute.")
+            }
+
+            if enableStocksFeature {
+                Section {
+                    HStack {
+                        Text("Symbol")
+                        Spacer()
+                        Text(stockSymbol.isEmpty ? "Not set" : stockSymbol)
+                            .foregroundStyle(stockSymbol.isEmpty ? .red : .primary)
+                            .fontWeight(.semibold)
+                    }
+
+                    if let price = stockManager.price {
+                        HStack {
+                            Text("Current price")
+                            Spacer()
+                            Text("\(stockManager.currencySymbol)\(String(format: "%.2f", price))")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    HStack {
+                        TextField("Ticker, Name oder ISIN, z. B. AAPL oder IE00B4L5Y983", text: $symbolInput)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit { search() }
+
+                        Button("Suchen") {
+                            search()
+                        }
+                        .disabled(symbolInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isChecking)
+                    }
+
+                    if isChecking {
+                        HStack(spacing: 8) {
+                            ProgressView().scaleEffect(0.7)
+                            Text("Suche…").foregroundStyle(.secondary)
+                        }
+                    }
+
+                    if checkFailed {
+                        Text("Nichts gefunden. Bitte Kürzel, Name oder ISIN prüfen (z. B. AAPL, MSCI World ETF, IE00B4L5Y983).")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+
+                    ForEach(searchResults) { result in
+                        Button {
+                            selectResult(result)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(result.name)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundStyle(.primary)
+                                    Text("\(result.symbol)\(result.exchange.isEmpty ? "" : " · \(result.exchange)")")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if let preview = previewQuote {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(preview.name)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Text("\(preview.currencySymbol)\(String(format: "%.2f", preview.price))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Übernehmen") {
+                                stockSymbol = preview.symbol
+                                symbolInput = ""
+                                previewQuote = nil
+                                searchResults = []
+                                Task { await stockManager.refreshNow() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+                } header: {
+                    Text("Symbol")
+                } footer: {
+                    Text("Funktioniert mit Aktien (AAPL, MSFT), ETFs (VOO, VWCE.DE), Firmennamen oder der ISIN (z. B. IE00B4L5Y983 für den MSCI World).")
+                }
+            }
+        }
+        .navigationTitle("Stocks")
+        .onAppear {
+            symbolInput = ""
+            searchResults = []
+            previewQuote = nil
+        }
+    }
+
+    private func search() {
+        let trimmed = symbolInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        isChecking = true
+        checkFailed = false
+        previewQuote = nil
+        searchResults = []
+
+        Task {
+            let results = await StockManager.search(query: trimmed)
+            await MainActor.run {
+                isChecking = false
+                if results.isEmpty {
+                    checkFailed = true
+                } else if results.count == 1, let only = results.first {
+                    selectResult(only)
+                } else {
+                    searchResults = results
+                }
+            }
+        }
+    }
+
+    private func selectResult(_ result: StockSearchResult) {
+        searchResults = []
+        isChecking = true
+        Task {
+            let quote = await StockManager.lookup(symbol: result.symbol)
+            await MainActor.run {
+                isChecking = false
+                if let quote {
+                    previewQuote = quote
+                } else {
+                    checkFailed = true
+                }
+            }
+        }
     }
 }
 

@@ -1,7 +1,12 @@
-Atoll (DynamicIsland) - NOTICE
+OpenNotch (DynamicIsland) - NOTICE
+
+This project is a fork of Atoll (https://github.com/Ebullioscopic/Atoll),
+renamed to OpenNotch, with additional features (fullscreen lock-screen
+overlay, Stocks tab, Obsidian vault assistant) added on top.
 
 This product includes software derived from the boring.notch project,
-modified and adapted for Atoll (DynamicIsland). The boring.notch project
-is licensed under the GNU General Public License v3.0.
+modified and adapted for Atoll (DynamicIsland), and subsequently for
+OpenNotch. The boring.notch project is licensed under the GNU General
+Public License v3.0.
 
 See the LICENSE file for the full GPL v3 text.

@@ -1090,6 +1090,8 @@ struct ContentView: View {
                                   NotchTimerView()
                               case .stats:
                                   NotchStatsView()
+                              case .stocks:
+                                  NotchStocksView()
                               case .llmUsage:
                                   NotchLLMUsageView()
                               case .colorPicker:

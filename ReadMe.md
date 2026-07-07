@@ -1,46 +1,45 @@
 <p align="center">
-  <img src=".github/assets/atoll-logo.png" alt="Atoll logo" width="120">
+  <img src=".github/assets/opennotch-logo.jpeg" alt="OpenNotch logo" width="120">
 </p>
-<h1 align="center">Atoll - DynamicIsland for macOS</h1>
+<h1 align="center">OpenNotch - DynamicIsland for macOS</h1>
+
+> **This is a personal fork of [Atoll](https://github.com/Ebullioscopic/Atoll)**, renamed to **OpenNotch**. Atoll itself is built on top of [boring.notch](https://github.com/TheBoredTeam/boring.notch). Both upstream projects are licensed under GPL-3.0, and so is this fork — see [License & Attribution](#license--attribution) below for the full chain of credit. All upstream feature/behavior descriptions in this README describe Atoll's original functionality unless noted otherwise.
+>
+> **What's added on top of Atoll in this fork:**
+> - A full-screen lock-screen music overlay (tap the lock-screen media card to open it): large album art in three modes — static cover, Live Canvas video, or a spinning vinyl record (press-and-hold the artwork button, drag down to pick) — with time-synced, tap-to-seek lyrics, a dynamic color background (togglable between full-color and translucent), swipe/tap-to-dismiss, and a standalone global keyboard shortcut to open it from anywhere.
+> - A Stocks tab in the notch: pick a stock or ETF (by ticker, name, or ISIN), see a live price chart colored green/red by trend, current price, and daily change.
+> - The Screen Assistant repurposed into a local-first Obsidian vault assistant: runs on Ollama (no cloud billing) with Claude as an optional fallback, automatically includes your vault as context, and proposes note edits with a confirm-before-write step.
+
 <p align="center">
-<a href="https://trendshift.io/repositories/15291" target="_blank"><img src="https://trendshift.io/api/badge/repositories/15291" alt="Ebullioscopic%2FAtoll | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+  <img src=".github/assets/opennotch-fullscreen-overlay-static.png" alt="OpenNotch fullscreen lock-screen overlay — static cover" width="440">
+  <img src=".github/assets/opennotch-fullscreen-overlay-vinyl.png" alt="OpenNotch fullscreen lock-screen overlay — vinyl mode" width="440">
 </p>
-<p align="center">
-  <a href="https://github.com/Ebullioscopic/Atoll/stargazers">
-    <img src="https://img.shields.io/github/stars/Ebullioscopic/Atoll?style=social" alt="GitHub stars"/>
-  </a>
-  <a href="https://github.com/Ebullioscopic/Atoll/network/members">
-    <img src="https://img.shields.io/github/forks/Ebullioscopic/Atoll?style=social" alt="GitHub forks"/>
-  </a>
-  <a href="https://github.com/Ebullioscopic/Atoll/releases">
-    <img src="https://img.shields.io/github/downloads/Ebullioscopic/Atoll/total?label=Downloads" alt="GitHub downloads"/>
-  </a>
-  <a href="https://discord.gg/PaqFkRTDF8">
-    <img src="https://dcbadge.limes.pink/api/server/https://discord.gg/PaqFkRTDF8?style=flat" alt="Discord server"/>
-  </a>
-</p>
+<p align="center"><sub>The new full-screen lock-screen music overlay — static album art (left) and spinning vinyl mode (right), with time-synced lyrics.</sub></p>
+
+This project stands entirely on the work of the original creators — please consider supporting them:
 
 <p align="center">
   <a href="https://github.com/sponsors/Ebullioscopic">
     <img src="https://img.shields.io/badge/Sponsor-Ebullioscopic-ff69b4?style=for-the-badge&logo=github" alt="Sponsor Ebullioscopic"/>
   </a>
-  <a href="https://github.com/Ebullioscopic/Atoll/releases/latest">
-    <img src="https://img.shields.io/badge/Download-Atoll%20for%20macOS-0A84FF?style=for-the-badge&logo=apple" alt="Download Atoll for macOS"/>
-  </a>
   <a href="https://www.buymeacoffee.com/kryoscopic">
     <img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-kryoscopic-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=000000" alt="Buy Me a Coffee for kryoscopic"/>
   </a>
+  <a href="https://discord.gg/PaqFkRTDF8">
+    <img src="https://dcbadge.limes.pink/api/server/https://discord.gg/PaqFkRTDF8?style=flat" alt="Discord server"/>
+  </a>
 </p>
+<p align="center">
+  <a href="https://discord.gg/PaqFkRTDF8">Join the (upstream Atoll) Discord community</a>
+</p>
+
+OpenNotch turns the MacBook notch into a focused command surface for media, system insight, and quick utilities. It stays out of the way until needed, then expands with responsive, native SwiftUI animations — plus the full-screen lock-screen overlay, Stocks tab, and Obsidian assistant added in this fork (see above).
 
 <p align="center">
-  <a href="https://discord.gg/PaqFkRTDF8">Join our Discord community</a>
+  <img src="https://i.postimg.cc/t49mW5yN/Screenshot-2026-03-02-at-6-00-22-PM.png" alt="Lock screen" width="920">
 </p>
 
-Atoll turns the MacBook notch into a focused command surface for media, system insight, and quick utilities. It stays out of the way until needed, then expands with responsive, native SwiftUI animations.
-
-<p align="center">
-  <img src="https://i.postimg.cc/t49mW5yN/Screenshot-2026-03-02-at-6-00-22-PM.png" alt="Atoll lock screen" width="920">
-</p>
+<!-- TODO: add a screenshot of the new fullscreen lock-screen overlay here once captured -->
 
 
 
@@ -70,9 +69,11 @@ Atoll turns the MacBook notch into a focused command surface for media, system i
 - Permissions as needed: Accessibility, Camera, Calendar, Screen Recording, Music.
 
 ## Installation
-1) Download the latest DMG [here](https://github.com/Ebullioscopic/Atoll/releases/latest).
-2) Open the DMG and drag Atoll into Applications.
-3) Launch Atoll and grant the requested permissions.
+1) Download the latest release [here](../../releases/latest).
+2) Open the archive and drag OpenNotch into Applications.
+3) Launch OpenNotch and grant the requested permissions.
+
+*(Everything below this point was written for the upstream Atoll project and largely still applies — feature names like "Atoll" in the text refer to the shared upstream behavior.)*
 
 ## Quick Start
 - Hover near the notch to expand; click to enter controls.
@@ -96,12 +97,12 @@ Atoll turns the MacBook notch into a focused command surface for media, system i
 - If metrics are empty, enable categories in Settings → Stats.
 - Media not responding: verify player is active and Music permission is granted.
 
-## License
-Atoll is released under the GPL v3 License. Refer to [LICENSE](LICENSE) for the full terms.
+## License & Attribution
+OpenNotch is a fork of [Atoll](https://github.com/Ebullioscopic/Atoll), which is itself built on [boring.notch](https://github.com/TheBoredTeam/boring.notch). Both are released under the GPL-3.0 License, and so is this fork — see [LICENSE](LICENSE) and [NOTICE](NOTICE) for the full terms and the complete chain of attribution.
 
 ## Acknowledgments
 
-Atoll builds upon the work of several open-source projects and draws inspiration from innovative macOS applications:
+Atoll (the base this fork builds on) builds upon the work of several open-source projects and draws inspiration from innovative macOS applications:
 
 - [**Boring.Notch**](https://github.com/TheBoredTeam/boring.notch) - foundational codebase that provided the initial media player integration, AirDrop surface implementation, file dock functionality, and calendar event display. Major architectural patterns and notch interaction models were adapted from this project.
 
@@ -135,14 +136,7 @@ Atoll builds upon the work of several open-source projects and draws inspiration
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Ebullioscopic/Atoll&type=timeline&legend=top-left)](https://www.star-history.com/#Ebullioscopic/Atoll&type=timeline&legend=top-left)
 
-## Updating Existing Clones
-If you previously cloned DynamicIsland, update the remote to track the Atoll repository:
-
-```bash
-git remote set-url origin https://github.com/Ebullioscopic/Atoll.git
-```
-
-A heartfelt thanks to [TheBoredTeam](https://github.com/TheBoredTeam) for being supportive and being totally awesome, Atoll would not have been possible without Boring.Notch
+A heartfelt thanks to [TheBoredTeam](https://github.com/TheBoredTeam) for being supportive and being totally awesome — Atoll (and by extension this fork) would not have been possible without boring.notch. Thanks also to [Ebullioscopic](https://github.com/Ebullioscopic) for building Atoll in the first place.
 
 ---
 

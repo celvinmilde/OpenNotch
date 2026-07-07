@@ -410,6 +410,18 @@ private struct ArtworkModePicker: View {
     private let stepDistance: CGFloat = 40 // drag distance (points) per step
 
     var body: some View {
+        // A fixed-size placeholder is what the surrounding HStack actually
+        // lays out around — the real (possibly taller, expanded) control is
+        // an overlay on top of it, so opening the picker never pushes the
+        // rest of the page's content down.
+        Color.clear
+            .frame(width: buttonSize, height: buttonSize)
+            .overlay(alignment: .top) {
+                pickerBody
+            }
+    }
+
+    private var pickerBody: some View {
         VStack(spacing: rowSpacing) {
             ForEach(ArtworkDisplayMode.allCases, id: \.rawValue) { option in
                 if isExpanded || option == mode {
